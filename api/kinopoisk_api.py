@@ -21,9 +21,9 @@ class KinopoiskAPI:
             data = response.json()
             return {
                 "movies": [self._parse_movie(doc) for doc in data.get("docs", [])],
-                "total":  data.get("total", 0),
-                "pages":  data.get("pages", 1),
-                "page":   data.get("page", 1),
+                "total": data.get("total", 0),
+                "pages": data.get("pages", 1),
+                "page": data.get("page", 1),
             }
         except requests.exceptions.RequestException as e:
             logger.error(f"search_movie error: {e}")
@@ -40,26 +40,31 @@ class KinopoiskAPI:
             return None
 
     def _parse_movie(self, doc: dict) -> dict:
+        # Защита от null: если API вернул None, используем пустой словарь
+        rating_data = doc.get("rating") or {}
+        poster_data = doc.get("poster") or {}
+
         return {
-            "id":          doc.get("id"),
-            "title":       doc.get("name") or doc.get("alternativeName") or "Без названия",
-            "title_en":    doc.get("alternativeName", ""),
-            "year":        doc.get("year"),
-            "rating":      doc.get("rating", {}).get("kp"),
-            "rating_imdb": doc.get("rating", {}).get("imdb"),
+            "id": doc.get("id"),
+            "title": doc.get("name") or doc.get("alternativeName") or "Без названия",
+            "title_en": doc.get("alternativeName", ""),
+            "year": doc.get("year"),
+            "rating": rating_data.get("kp"),
+            "rating_imdb": rating_data.get("imdb"),
             "description": doc.get("description") or "",
-            "poster":      doc.get("poster", {}).get("url"),
-            "genres":      [g["name"] for g in doc.get("genres", [])],
-            "type":        doc.get("type", "movie"),
+            "poster": poster_data.get("url"),
+            # Защита от null для списков: если genres = None, используем пустой список
+            "genres": [g["name"] for g in (doc.get("genres") or [])],
+            "type": doc.get("type", "movie"),
         }
 
     def _parse_movie_full(self, doc: dict) -> dict:
         base = self._parse_movie(doc)
         base.update({
-            "length":        doc.get("movieLength"),
-            "countries":     [c["name"] for c in doc.get("countries", [])],
-            "similarMovies": doc.get("similarMovies", [])[:5],
-            "ageRating":     doc.get("ageRating"),
-            "slogan":        doc.get("slogan") or "",
+            "length": doc.get("movieLength"),
+            "countries": [c["name"] for c in (doc.get("countries") or [])],
+            "similarMovies": (doc.get("similarMovies") or [])[:5],
+            "ageRating": doc.get("ageRating"),
+            "slogan": doc.get("slogan") or "",
         })
         return base
